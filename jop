@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>jakubuv pruvodce československym rapem</title>
+<style>
+body{font-family:Arial,sans-serif;text-align:center;margin:18px;}
+#mainContent{display:none;}
+h2{text-transform:none;}
+#topControls{margin-bottom:12px;}
+button{margin:6px;padding:8px 12px;font-size:16px;cursor:pointer;}
+#editor{margin-top:10px;}
+#coverCanvas{border:1px solid #222;image-rendering:pixelated;cursor:crosshair;}
+#library{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:18px;}
+.cover{width:160px;height:160px;border:1px solid #333;image-rendering:pixelated;cursor:pointer;position:relative;}
+.deleteBtn{position:absolute;top:2px;right:2px;font-size:12px;padding:2px 4px;}
+#secretMessage{color:darkred;font-weight:700;margin-top:12px;min-height:24px;}
+input[type=text],input[type=password]{padding:6px;font-size:15px;width:300px;}
+label{display:block;margin-top:8px;margin-bottom:6px;}
+.coverContainer{position:relative; display:inline-block;}
+</style>
+</head>
+<body>
+
+<!-- heslo -->
+<div id="loginDiv">
+<h2>zadej heslo</h2>
+<input id="passwordInput" type="password" placeholder="heslo">
+<button id="loginBtn">odeslat</button>
+<p id="loginMessage" style="color:red;"></p>
+</div>
+
+<div id="mainContent">
+<h2>jakubuv pruvodce československym rapem</h2>
+
+<div id="topControls">
+<button id="playBtn">pusť ten shit</button>
+<button id="pauseBtn">vypni ten shit</button>
+<button id="skipBtn">skipni ten shit</button>
+</div>
+
+<audio id="myAudio"></audio>
+
+<div id="editor">
+<label>název písničky:</label>
+<input id="songName" type="text" placeholder="zadej název...">
+<div style="margin-top:10px;">
+<label>vyber barvu (color picker):</label>
+<input id="colorPicker" type="color" value="#ff0000">
+</div>
+<div style="margin-top:10px;">
+<canvas id="coverCanvas" width="320" height="320"></canvas>
+</div>
+<div style="margin-top:10px;">
+<button id="saveBtn">zaradit mezi bangers</button>
+</div>
+</div>
+
+<div id="audioControls" style="margin-top:12px;">
+<button id="secretBtn">tajne background info</button>
+</div>
+
+<p id="secretMessage"></p>
+
+<h3>knihovna</h3>
+<div id="library"></div>
+
+<script>
+/* ===== heslo ===== */
+const PASSWORD="mojeheslo123";
+const loginDiv=document.getElementById('loginDiv');
+const mainContent=document.getElementById('mainContent');
+const loginBtn=document.getElementById('loginBtn');
+const passwordInput=document.getElementById('passwordInput');
+const loginMessage=document.getElementById('loginMessage');
+
+loginBtn.addEventListener('click',()=>{if(passwordInput.value===PASSWORD){loginDiv.style.display='none';mainContent.style.display='block';}else{loginMessage.textContent="špatné heslo, zkus to znovu."}});
+
+/* ===== audio a knihovna ===== */
+const audio=document.getElementById('myAudio');
+let currentSong=null; // pracovní píseň
+let currentIndex=-1;
+
+function loadLibrary(){
+  const library=JSON.parse(localStorage.getItem('myLibrary')||'[]');
+  const lib=document.getElementById('library');
+  lib.innerHTML='';
+  library.forEach((item,idx)=>{
+    const container=document.createElement('div');
+    container.className='coverContainer';
+    const img=document.createElement('img');
+    img.className='cover';
+    img.src=item.cover;
+    img.title=item.name;
+    img.onclick=()=>{
+      audio.src=item.song; audio.play().catch(()=>{}); currentIndex=idx; currentSong=null;
+      document.getElementById('secretMessage').textContent='';
+    };
+    const delBtn=document.createElement('button');
+    delBtn.className='deleteBtn';
+    delBtn.textContent='smazat';
+    delBtn.onclick=(e)=>{e.stopPropagation(); library.splice(idx,1); localStorage.setItem('myLibrary',JSON.stringify(library)); loadLibrary();};
+    container.appendChild(img);
+    container.appendChild(delBtn);
+    lib.appendChild(container);
+  });
+}
+
+/* ===== ovládací tlačítka ===== */
+document.getElementById('playBtn').addEventListener('click',()=>{if(currentSong){audio.src=currentSong.song; audio.play().catch(()=>{});}});
+document.getElementById('pauseBtn').addEventListener('click',()=>audio.pause());
+document.getElementById('skipBtn').addEventListener('click',()=>{if(currentSong){audio.src=currentSong.song; audio.play().catch(()=>{});}});
+document.getElementById('secretBtn').addEventListener('click',()=>{
+  const lib=JSON.parse(localStorage.getItem('myLibrary')||'[]');
+  if(currentSong) document.getElementById('secretMessage').textContent=currentSong.secret||'žádná tajná zpráva.';
+  else if(currentIndex>=0 && lib[currentIndex]) document.getElementById('secretMessage').textContent=lib[currentIndex].secret||'žádná tajná zpráva.';
+});
+
+/* ===== kreslicí editor ===== */
+const canvas=document.getElementById('coverCanvas');
+const ctx=canvas.getContext('2d');
+const pixelSize=16;
+const gridSize=20;
+let drawing=false;
+let currentColor=document.getElementById('colorPicker').value;
+
+function drawGrid(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='#efefef';for(let i=0;i<=gridSize;i++){ctx.beginPath();ctx.moveTo(i*pixelSize,0);ctx.lineTo(i*pixelSize,canvas.height);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*pixelSize);ctx.lineTo(canvas.width,i*pixelSize);ctx.stroke();}}
+drawGrid();
+
+function paintAt(x,y,color){if(x<0||x>=gridSize||y<0||y>=gridSize) return; ctx.fillStyle=color; ctx.fillRect(x*pixelSize,y*pixelSize,pixelSize,pixelSize);}
+canvas.addEventListener('mousedown',e=>{drawing=true;handlePointerEvent(e);});
+canvas.addEventListener('mouseup',()=>drawing=false);
+canvas.addEventListener('mouseleave',()=>drawing=false);
+canvas.addEventListener('mousemove',e=>{if(drawing) handlePointerEvent(e);});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;handlePointerEvent(e.touches[0]);});
+canvas.addEventListener('touchend',e=>{e.preventDefault();drawing=false;});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(drawing) handlePointerEvent(e.touches[0]);});
+document.getElementById('colorPicker').addEventListener('input',e=>{currentColor=e.target.value;});
+function handlePointerEvent(e){const rect=canvas.getBoundingClientRect();const cx=e.clientX-rect.left;const cy=e.clientY-rect.top;const x=Math.floor(cx/pixelSize);const y=Math.floor(cy/pixelSize);paintAt(x,y,currentColor);}
+
+/* ===== uložení do knihovny ===== */
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  const name=(document.getElementById('songName').value||'').trim();
+  if(!name) return alert('vyplň název písničky prosím');
+  const url=prompt('zadej URL mp3 písničky:');
+  if(!url) return alert('zadej URL mp3');
+  const secret=prompt('zadej tajnou zprávu (volitelné):','');
+  const coverData=canvas.toDataURL();
+  const library=JSON.parse(localStorage.getItem('myLibrary')||'[]');
+  library.push({name:name,cover:coverData,song:url,secret:secret||''});
+  localStorage.setItem('myLibrary',JSON.stringify(library));
+  currentSong=null; // po uložení už horní tlačítka nepřehrají
+  document.getElementById('songName').value='';
+  drawGrid();
+  loadLibrary();
+});
+loadLibrary();
+</script>
+
+</body>
+</html>
